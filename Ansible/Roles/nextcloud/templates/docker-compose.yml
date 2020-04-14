@@ -1,0 +1,73 @@
+version: '3'
+
+services:
+  db:
+    image: linuxserver/mariadb
+    restart: always
+    container_name: nextcloud_mariadb
+    volumes:
+      - /mnt/usbstick/nextcloud/db/data:/config
+      - /media/nextcloud/db/mycustom.cnf:/etc/mysql/conf.d/custom.cnf
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+      - MYSQL_ROOT_PASSWORD={{nextcloud_db_root_pw}}
+    env_file:
+      - db.env
+    ports:
+      - 3306:3306
+
+  app:
+    image: nextcloud:stable-apache
+    restart: always
+    container_name: nextcloud_container
+    volumes:
+      - /mnt/usbstick/nextcloud/html:/var/www/html
+    environment:
+      - VIRTUAL_HOST={{nextcloud_host}}
+      - LETSENCRYPT_HOST={{nextcloud_host}}
+      - LETSENCRYPT_EMAIL= {{letsencrypt_email}}
+      - MYSQL_HOST=db
+    env_file:
+      - db.env
+
+    depends_on:
+      - db
+    networks:
+      - proxy-tier
+      - default
+
+  proxy:
+    build: ./proxy
+    restart: always
+    container_name: nextcloud_proxy
+    ports:
+      - 80:80
+      - 443:443
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: alexanderkrause/rpi-nginx-proxy
+    volumes:
+      - /mnt/usbstick/nextcloud/certs:/etc/nginx/certs:ro
+      - /mnt/usbstick/nextcloud/vhost.d:/etc/nginx/vhost.d
+      - /mnt/usbstick/nextcloud/nginx_html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - proxy-tier
+
+  letsencrypt-companion:
+    image: alexanderkrause/rpi-letsencrypt-nginx-proxy-companion
+    restart: always
+    container_name: nextcloud_lets_companion
+    volumes:
+      - /mnt/usbstick/nextcloud/certs:/etc/nginx/certs
+      - /mnt/usbstick/nextcloud/vhost.d:/etc/nginx/vhost.d
+      - /mnt/usbstick/nextcloud/nginx_html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy-tier
+    depends_on:
+      - proxy
+
+networks:
+  proxy-tier:

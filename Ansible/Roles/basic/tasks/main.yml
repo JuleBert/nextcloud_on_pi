@@ -1,0 +1,63 @@
+---
+- name: Update apt
+  apt: update_cache=yes
+
+- name: Check if docker is installed
+  shell: which docker 2>&1
+  register: docker_check
+  ignore_errors: True
+
+- debug: var={{item}}
+  with_items: docker_check.stdout_lines
+
+- debug: var={{item}}
+  with_items: docker_check.stdout.find('/usr/bin/docker')
+
+- name: getting docker install script from the web, executing it and writing the result to a log file
+  shell: curl -sSL https://get.docker.com | sh &>> install_docker.log
+  args:
+    chdir: /usr/local/bin/
+    creates: install_docker.log
+  when: docker_check.stdout.find('/usr/bin/docker') != 0
+
+- name: Ensure group "docker" exists
+  group:
+    name: docker
+    state: present
+
+- name: Add the user pi to the group of 'docker'
+  user:
+    name: pi
+    groups: docker
+    append: yes
+
+- name: Install docker-compose
+  apt:
+    name: docker-compose
+    state: present
+    update_cache: yes
+
+- name: create directory for usb stick
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  with_items:
+    - /mnt/usbstick/
+    - /media/
+
+- name: Mount up device
+  mount:
+    path: /mnt/usbstick/
+    src: LABEL=USBSTICK
+    fstype: ext4
+    opts: defaults
+    state: present
+
+- name: give directory for usb stick to user pi
+  file:
+    path: /mnt/usbstick/
+    state: directory
+    owner: pi
+    group: pi
+    mode: 0755

@@ -1,0 +1,16 @@
+---
+- hosts: all
+  become: true
+  vars:
+    nextcloud_host: nextcloud-on-pi.dynv6.net
+    nextcloud_os_user: pi
+    nextcloud_os_group: pi
+    nextcloud_db_user: nextcloud
+    nextcloud_db_pw: change_me
+    nextcloud_db_root_pw: seriously_change_me
+    letsencrypt_email: 01337.ftw@gmail.com
+    dynv6_token: your-dynv6-token
+
+  roles:
+    - basic
+    - nextcloud

@@ -1,0 +1,81 @@
+---
+- name: "Installing nextcloud software"
+  apt:
+    pkg:
+      - python3-pip
+    state: present
+    force_apt_get: yes
+
+- name: "create directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{nextcloud_os_user}}"
+    group: "{{nextcloud_os_group}}"
+    mode: 0755
+  with_items:
+    - /mnt/usbstick/nextcloud/certs
+    - /mnt/usbstick/nextcloud/vhost.d
+    - /mnt/usbstick/nextcloud/nginx_html
+    - /mnt/usbstick/nextcloud/letsencrypt-nextcloud
+    - /mnt/usbstick/nextcloud/db/data
+    - /media/nextcloud/
+    - /media/nextcloud/db/
+    - /media/nextcloud/proxy/
+    - /media/dynv6/
+
+- name: "create directory for user www-data"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "www-data"
+    group: "root"
+    mode: 0755
+  with_items:
+    - /mnt/usbstick/nextcloud/html
+
+- name: "Copy docker-compose"
+  template:
+    src: "{{ item }}"
+    dest: /media/nextcloud/
+    owner: "{{nextcloud_os_user}}"
+    group: "{{nextcloud_os_group}}"
+    mode: 0755
+  with_items:
+    - docker-compose.yml
+    - db.env
+
+- name: "Copy files to db directory"
+  copy:
+    src: "{{ item }}"
+    dest: /media/nextcloud/db/
+    owner: "{{nextcloud_os_user}}"
+    group: "{{nextcloud_os_group}}"
+    mode: 0755
+  with_items:
+    - mycustom.cnf
+
+- name: "Copy files to proxy directory"
+  copy:
+    src: "{{ item }}"
+    dest: /media/nextcloud/proxy/
+    owner: "{{nextcloud_os_user}}"
+    group: "{{nextcloud_os_group}}"
+    mode: 0755
+  with_items:
+    - uploadsize.conf
+    - Dockerfile
+
+- name: "Copy dynv6.sh"
+  template:
+    src: dynv6.sh
+    dest: /media/dynv6/dynv6.sh
+    owner: pi
+    group: pi
+    mode: 0700
+
+- name: put the dynv6 script into the cronjob
+  cron:
+    name: "update_dynv6"
+    minute: "5"
+    job: "token={{dynv6_token}} /media/dynv6/dynv6.sh"

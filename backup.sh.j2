@@ -1,0 +1,18 @@
+#!/bin/sh
+docker exec -u www-data -it nextcloud_container php occ maintenance:mode --on
+
+echo 'begin db backup'
+datum=`date +"%Y%m%d"`
+date
+docker exec -it nextcloud_mariadb mysqldump --single-transaction -p{{nextcloud_db_root_pw}} nextcloud > /mnt/usbstick/nextcloud/nextcloud-sqlbkp.bak
+lftp -u {{ftp_user}},{{ftp_pass}} -e 'put /mnt/usbstick/nextcloud/nextcloud-sqlbkp.bak;exit;' {{ftp_host}} > /media/backup_nextcloud/log.txt
+
+echo 'begin backup of config folder'
+lftp -u {{ftp_user}},{{ftp_pass}} -e 'mirror --log=/media/backup_nextcloud/log_config.txt --delete --reverse /mnt/usbstick/nextcloud/html/config config;exit;' {{ftp_host}}
+echo 'begin backup of themes folder'
+lftp -u {{ftp_user}},{{ftp_pass}} -e 'mirror --log=/media/backup_nextcloud/log_themes.txt --delete --reverse /mnt/usbstick/nextcloud/html/themes themes;exit;' {{ftp_host}}
+echo 'begin backup of data folder'
+lftp -u {{ftp_user}},{{ftp_pass}} -e 'mirror --log=/media/backup_nextcloud/log_data.txt --delete --reverse /mnt/usbstick/nextcloud/html/data data;exit;' {{ftp_host}}
+
+date
+docker exec -u www-data -it nextcloud_container php occ maintenance:mode --off
